@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">AndroidPDF Example</string>
+
+
+    <string name="rationale_storage">This app needs access to your storage so you can store files.</string>
+    <string name="returned_from_app_settings_to_activity">
+        Returned from app settings to MainActivity with the following permissions:
+        \n\nStorage: %s
+    </string>
+</resources>
