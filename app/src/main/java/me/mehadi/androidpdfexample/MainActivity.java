@@ -2,13 +2,16 @@ package me.mehadi.androidpdfexample;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import android.Manifest;
-import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.pdf.PdfDocument;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
@@ -21,18 +24,13 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.List;
 
-import pub.devrel.easypermissions.AfterPermissionGranted;
-import pub.devrel.easypermissions.AppSettingsDialog;
-import pub.devrel.easypermissions.EasyPermissions;
+import static android.Manifest.permission.READ_EXTERNAL_STORAGE;
+import static android.Manifest.permission.WRITE_EXTERNAL_STORAGE;
 
-public class MainActivity extends AppCompatActivity implements EasyPermissions.PermissionCallbacks,
-        EasyPermissions.RationaleCallbacks {
+public class MainActivity extends AppCompatActivity {
     Button btnCreate;
     EditText editText;
-
-
-    private static final String TAG = "MainActivity";
-    private static final int RC_STORAGE_PERMISSION = 123;
+    private static final int STORAGE_CODE = 100;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,8 +40,16 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
 
         btnCreate = findViewById(R.id.create);
         editText = findViewById(R.id.edittext);
-        btnCreate.setOnClickListener(view ->
-                pdfTask()
+        btnCreate.setOnClickListener(view -> {
+                    if (CheckingPermissionIsEnabledOrNot()) {
+                        createPdf(editText.getText().toString());
+                    }
+                    // If, If permission is not enabled then else condition will execute.
+                    else {
+                        //Calling method to enable permission.
+                        RequestMultiplePermission();
+                    }
+                }
         );
 
 
@@ -74,13 +80,15 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
         paint.setColor(Color.BLUE);
         canvas.drawCircle(100, 100, 100, paint);
         document.finishPage(page);
+
         // write the document content
-        String directory_path = Environment.getExternalStorageDirectory().getPath() + "/mypdf/";
+        String directory_path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/mypdf/";
         File file = new File(directory_path);
         if (!file.exists()) {
             file.mkdirs();
         }
-        String targetPdf = directory_path + "test-2.pdf";
+        double random_double = Math.random() * (999999 - 999 + 1) + 999;
+        String targetPdf = directory_path + String.valueOf(random_double) + ".pdf";
         File filePath = new File(targetPdf);
         try {
             document.writeTo(new FileOutputStream(filePath));
@@ -93,66 +101,66 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
         document.close();
     }
 
-    private boolean hasStoragePermission() {
-        return EasyPermissions.hasPermissions(this, Manifest.permission.WRITE_EXTERNAL_STORAGE);
-    }
+/*
+    public void writeFileOnInternalStorage(String sFileName, String sBody){
 
-    @AfterPermissionGranted(RC_STORAGE_PERMISSION)
-    public void pdfTask() {
-        if (hasStoragePermission()) {
-            // Have permission, do the thing!
-            createPdf(editText.getText().toString());
-        } else {
-            // Ask for one permission
-            EasyPermissions.requestPermissions(
-                    this,
-                    getString(R.string.rationale_storage),
-                    RC_STORAGE_PERMISSION,
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE);
+        try{
+            File gpxfile = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), sFileName);
+            FileWriter writer = new FileWriter(gpxfile);
+            writer.append(sBody);
+            writer.flush();
+            writer.close();
+
+        }catch (Exception e){
+            e.printStackTrace();
+
         }
+
+
+    }
+*/
+
+    public boolean CheckingPermissionIsEnabledOrNot() {
+
+        int FirstPermissionResult = ContextCompat.checkSelfPermission(getApplicationContext(), READ_EXTERNAL_STORAGE);
+        int SecondPermissionResult = ContextCompat.checkSelfPermission(getApplicationContext(), WRITE_EXTERNAL_STORAGE);
+
+        return FirstPermissionResult == PackageManager.PERMISSION_GRANTED &&
+                SecondPermissionResult == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private void RequestMultiplePermission() {
+
+        // Creating String Array with Permissions.
+        ActivityCompat.requestPermissions(MainActivity.this, new String[]
+                {
+                        READ_EXTERNAL_STORAGE,
+                        WRITE_EXTERNAL_STORAGE,
+                }, 999);
+
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode,
-                                           @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
+        switch (requestCode) {
 
-        // EasyPermissions handles the request result.
-        EasyPermissions.onRequestPermissionsResult(requestCode, permissions, grantResults, this);
-    }
+            case 999:
 
-    @Override
-    public void onPermissionsGranted(int requestCode, @NonNull List<String> perms) {
-        Log.d(TAG, "onPermissionsGranted:" + requestCode + ":" + perms.size());
-    }
+                if (grantResults.length > 0) {
 
-    @Override
-    public void onPermissionsDenied(int requestCode, @NonNull List<String> perms) {
-        Log.d(TAG, "onPermissionsDenied:" + requestCode + ":" + perms.size());
+                    boolean ReadStorage = grantResults[0] == PackageManager.PERMISSION_GRANTED;
+                    boolean WriteStorage = grantResults[1] == PackageManager.PERMISSION_GRANTED;
 
-        // (Optional) Check whether the user denied any permissions and checked "NEVER ASK AGAIN."
-        // This will display a dialog directing them to enable the permission in app settings.
-        if (EasyPermissions.somePermissionPermanentlyDenied(this, perms)) {
-            new AppSettingsDialog.Builder(this).build().show();
+                    if (ReadStorage && WriteStorage) {
+
+
+                    } else {
+                        Toast.makeText(MainActivity.this, "Permission Denied", Toast.LENGTH_LONG).show();
+
+                    }
+                }
+
+                break;
         }
-    }
-
-    @Override
-    public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-
-        if (requestCode == AppSettingsDialog.DEFAULT_SETTINGS_REQ_CODE) {
-        }
-    }
-
-    @Override
-    public void onRationaleAccepted(int requestCode) {
-        Log.d(TAG, "onRationaleAccepted:" + requestCode);
-    }
-
-    @Override
-    public void onRationaleDenied(int requestCode) {
-        Log.d(TAG, "onRationaleDenied:" + requestCode);
     }
 }
